@@ -1,70 +1,266 @@
-# Getting Started with Create React App
+# Autenticação com Context Api
 
-This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).
+Vamos entender como a Context Api funciona, e iremos usá-la para autenticar usuários (fazer login) e cadastrar novos usuários.
 
-## Available Scripts
+## O que é a Context Api?
+É uma Api do react, que visa possibilitar a criação de contextos, e disponibilizar as informações deste contexto, para quaisquer componentes que quisermos, dentro da apicação.
 
-In the project directory, you can run:
+Em outras palavras, podemos criar estados globais. Armazenar valores neste contexto, e acessá-los de qualquer componente.
 
-### `yarn start`
+## Passo 1 - Criando um contexto
 
-Runs the app in the development mode.\
-Open [http://localhost:3000](http://localhost:3000) to view it in the browser.
+Vamos começar criando um contexto para a autenticação. (na pasta contexts, o arquivo auth.js)
 
-The page will reload if you make edits.\
-You will also see any lint errors in the console.
+Para criar o contexto:
 
-### `yarn test`
+```javascript
+require 'redcarpet'
+markdown = Redcarpet.new("Hello World!")
+puts markdown.to_html
+coloca markdown.to_html
 
-Launches the test runner in the interactive watch mode.\
-See the section about [running tests](https://facebook.github.io/create-react-app/docs/running-tests) for more information.
+import React, { createContext, useContext, useState, useEffect } from "react";
+import api from "../services/api";
 
-### `yarn build`
+const AuthContext = createContext({});
 
-Builds the app for production to the `build` folder.\
-It correctly bundles React in production mode and optimizes the build for the best performance.
+```
 
-The build is minified and the filenames include the hashes.\
-Your app is ready to be deployed!
+## Passo 2 - Criando um provider para este contexto
 
-See the section about [deployment](https://facebook.github.io/create-react-app/docs/deployment) for more information.
+Agora que já criamos o contexto, é necessário disponibilizarmos as informações que terão dentro dele, para todos os componentes que quisermos.
 
-### `yarn eject`
+Para tanto, criamos o provider:
 
-**Note: this is a one-way operation. Once you `eject`, you can’t go back!**
+```javascript
+require 'redcarpet'
+markdown = Redcarpet.new("Hello World!")
+puts markdown.to_html
+coloca markdown.to_html
 
-If you aren’t satisfied with the build tool and configuration choices, you can `eject` at any time. This command will remove the single build dependency from your project.
+export const AuthProvider = ({ children }) => {
+  const [user, setUser] = useState("");
 
-Instead, it will copy all the configuration files and the transitive dependencies (webpack, Babel, ESLint, etc) right into your project so you have full control over them. All of the commands except `eject` will still work, but they will point to the copied scripts so you can tweak them. At this point you’re on your own.
+  useEffect(() => {
+    const storagedUser = localStorage.getItem("@App:user");
+    const storagedToken = localStorage.getItem("@App:token");
 
-You don’t have to ever use `eject`. The curated feature set is suitable for small and middle deployments, and you shouldn’t feel obligated to use this feature. However we understand that this tool wouldn’t be useful if you couldn’t customize it when you are ready for it.
+    if (storagedUser && storagedToken) {
+      setUser(JSON.parse(storagedUser));
+      api.defaults.headers.Authorization = `Bearer ${storagedToken}`;
+    }
+  }, []);
 
-## Learn More
+  function logout() {
+    setUser(null);
 
-You can learn more in the [Create React App documentation](https://facebook.github.io/create-react-app/docs/getting-started).
+    localStorage.removeItem("@App:user");
+    localStorage.removeItem("@App:token");
+  }
 
-To learn React, check out the [React documentation](https://reactjs.org/).
+  async function login(email, password) {
+    const response = await api.post("/sessions", {
+      email: email,
+      password: password,
+    });
 
-### Code Splitting
+    setUser(response.data.user);
+    api.defaults.headers.Authorization = `Bearer ${response.data.token}`;
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/code-splitting](https://facebook.github.io/create-react-app/docs/code-splitting)
+    localStorage.setItem("@App:user", JSON.stringify(response.data.user));
+    localStorage.setItem("@App:token", response.data.token);
+  }
 
-### Analyzing the Bundle Size
+  return (
+    <AuthContext.Provider
+      value={{ signed: Boolean(user), user, login, logout }}
+    >
+      {children}
+    </AuthContext.Provider>
+  );
+};
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/analyzing-the-bundle-size](https://facebook.github.io/create-react-app/docs/analyzing-the-bundle-size)
+```
 
-### Making a Progressive Web App
+## Passo 3 - Criar um hook para usar este contexto de forma mais simples
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/making-a-progressive-web-app](https://facebook.github.io/create-react-app/docs/making-a-progressive-web-app)
+Agora que já criamos o contexto e o provider deste contexto, iremos criar um hook para poder acessar as informações deste contexto, de forma mais rápida e com menos código.
 
-### Advanced Configuration
+Com este hook, podemos tanto acessar as informações contidas no contexto, quanto disparar as funções que estão neste contexto.
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/advanced-configuration](https://facebook.github.io/create-react-app/docs/advanced-configuration)
 
-### Deployment
+```javascript
+require 'redcarpet'
+markdown = Redcarpet.new("Hello World!")
+puts markdown.to_html
+coloca markdown.to_html
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/deployment](https://facebook.github.io/create-react-app/docs/deployment)
+export function useAuth() {
+  const context = useContext(AuthContext);
 
-### `yarn build` fails to minify
+  return context;
+}
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify](https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify)
+```
+
+E ao final, não esquecer de exportar por padrão, o contexto:
+
+```javascript
+require 'redcarpet'
+markdown = Redcarpet.new("Hello World!")
+puts markdown.to_html
+coloca markdown.to_html
+
+export default AuthContext;
+
+```
+
+### Arquivo completo:
+
+```javascript
+require 'redcarpet'
+markdown = Redcarpet.new("Hello World!")
+puts markdown.to_html
+coloca markdown.to_html
+
+import React, { createContext, useContext, useState, useEffect } from "react";
+import api from "../services/api";
+
+const AuthContext = createContext({});
+
+export const AuthProvider = ({ children }) => {
+  const [user, setUser] = useState("");
+
+  useEffect(() => {
+    const storagedUser = localStorage.getItem("@App:user");
+    const storagedToken = localStorage.getItem("@App:token");
+
+    if (storagedUser && storagedToken) {
+      setUser(JSON.parse(storagedUser));
+      api.defaults.headers.Authorization = `Bearer ${storagedToken}`;
+    }
+  }, []);
+
+  function logout() {
+    setUser(null);
+
+    localStorage.removeItem("@App:user");
+    localStorage.removeItem("@App:token");
+  }
+
+  async function login(email, password) {
+    const response = await api.post("/sessions", {
+      email: email,
+      password: password,
+    });
+
+    setUser(response.data.user);
+    api.defaults.headers.Authorization = `Bearer ${response.data.token}`;
+
+    localStorage.setItem("@App:user", JSON.stringify(response.data.user));
+    localStorage.setItem("@App:token", response.data.token);
+  }
+
+  return (
+    <AuthContext.Provider
+      value={{ signed: Boolean(user), user, login, logout }}
+    >
+      {children}
+    </AuthContext.Provider>
+  );
+};
+
+export function useAuth() {
+  const context = useContext(AuthContext);
+
+  return context;
+}
+
+export default AuthContext;
+
+```
+
+## Passo 4 - Disponibilizar o contexto para componentes
+
+Agora que criamos o contexto e o provider, vamos colocar dentro deste provider, os componentes que desejamos que tenha acesso a este contexto:
+
+```javascript
+require 'redcarpet'
+markdown = Redcarpet.new("Hello World!")
+puts markdown.to_html
+coloca markdown.to_html
+
+import React from "react";
+import { BrowserRouter as Router } from "react-router-dom";
+
+import { AuthProvider } from "./contexts/auth";
+import Routes from "./routes";
+
+const App = () => (
+  <AuthProvider>
+    <Router>
+      <Routes />
+    </Router>
+  </AuthProvider>
+);
+
+export default App;
+
+``` 
+
+## Passo 5 - Usar informações/funções de dentro do contexto
+
+Agora iremos fazer o login, usando a função de login que está dentro deste contexto:
+
+```javascript
+require 'redcarpet'
+markdown = Redcarpet.new("Hello World!")
+puts markdown.to_html
+coloca markdown.to_html
+
+import React, { useState } from "react";
+import { Link } from "react-router-dom";
+
+import { useAuth } from "../../contexts/auth";
+
+import "./styles.css";
+
+const SignIn = () => {
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const context = useAuth();
+
+  function handleSubmit() {
+    context.login(email, password);
+  }
+
+  return (
+    <div className="container">
+      <h1>Login</h1>
+      <div className="form">
+        <input
+          placeholder="usuário"
+          onChange={(event) => setEmail(event.target.value)}
+        />
+        <input
+          placeholder="senha"
+          onChange={(event) => setPassword(event.target.value)}
+        />
+        <button type="submit" onClick={handleSubmit}>
+          Acessar
+        </button>
+      </div>
+      <Link to="/signup">Cadastrar</Link>
+    </div>
+  );
+};
+
+export default SignIn;
+
+``` 
+
+## Resumo
+
+Para termos funções e valores acessíveis em toda a aplicação, basta criarmos um contexto, um provider para este contexto, contendo tudo o que desejamos tornar acessível globalmente, e englobar com o provider, os componentes que desejarmos acessar tais informações. 
+
+
